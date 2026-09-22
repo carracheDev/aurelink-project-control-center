@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RoadmapStep {
+  id         String   @id @default(cuid())
+  phaseId    String
+  stepId     String
+  label      String
+  isChecked  Boolean  @default(false)
+  updatedBy  String?
+  updatedAt  DateTime @updatedAt
+
+  @@unique([phaseId, stepId])
+  @@map("roadmap_steps")
+}

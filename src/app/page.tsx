@@ -291,27 +291,64 @@ function buildInitialChecklistState() {
 }
 
 export default function HomePage() {
-  const [checklist, setChecklist] = useState<Record<string, Record<string, boolean>>>(() => {
-    const initialChecklist = buildInitialChecklistState();
-
-    if (typeof window === "undefined") {
-      return initialChecklist;
-    }
-
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      return saved ? (JSON.parse(saved) as Record<string, Record<string, boolean>>) : initialChecklist;
-    } catch {
-      return initialChecklist;
-    }
-  });
+  const [checklist, setChecklist] = useState<Record<string, Record<string, boolean>>>(buildInitialChecklistState);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [openPhase, setOpenPhase] = useState<string>("analyse-modelisation");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(checklist));
+    if (typeof window === "undefined") {
+      return;
     }
-  }, [checklist]);
+
+    const loadSavedState = () => {
+      try {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved) as Record<string, Record<string, boolean>>;
+          setChecklist(parsed);
+        }
+      } catch {
+        // Ignore invalid localStorage data and keep the default roadmap state.
+      }
+    };
+
+    const loadRemoteState = async () => {
+      try {
+        const response = await fetch("/api/roadmap");
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as Array<{ phaseId: string; stepId: string; isChecked: boolean }>;
+        if (!Array.isArray(data) || data.length === 0) {
+          loadSavedState();
+          return;
+        }
+
+        const nextChecklist = buildInitialChecklistState();
+        for (const item of data) {
+          nextChecklist[item.phaseId] ??= {};
+          nextChecklist[item.phaseId][item.stepId] = Boolean(item.isChecked);
+        }
+
+        setChecklist(nextChecklist);
+      } catch {
+        loadSavedState();
+      }
+    };
+
+    void loadRemoteState();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(checklist));
+  }, [checklist, isHydrated]);
 
   const totalSteps = phases.reduce((sum, phase) => sum + phase.steps.length, 0);
   const totalChecked = phases.reduce((sum, phase) => {
@@ -321,14 +358,42 @@ export default function HomePage() {
 
   const globalProgress = Math.round((totalChecked / totalSteps) * 100);
 
-  const toggleStep = (phaseId: string, index: number) => {
-    setChecklist((current) => ({
-      ...current,
+  const toggleStep = async (phaseId: string, index: number) => {
+    const nextValue = !(checklist[phaseId]?.[String(index)] ?? false);
+    const nextChecklist = {
+      ...checklist,
       [phaseId]: {
-        ...(current[phaseId] ?? {}),
-        [String(index)]: !(current[phaseId]?.[String(index)] ?? false),
+        ...(checklist[phaseId] ?? {}),
+        [String(index)]: nextValue,
       },
-    }));
+    };
+
+    setChecklist(nextChecklist);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/roadmap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phaseId,
+          stepId: String(index),
+          isChecked: nextValue,
+          updatedBy: "user",
+        }),
+      });
+
+      if (!response.ok) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextChecklist));
+      }
+    } catch {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextChecklist));
+    }
   };
 
   return (

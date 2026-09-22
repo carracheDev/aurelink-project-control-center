@@ -76,11 +76,11 @@ button {
 }
 
 .overview-card {
-  background: rgba(15, 31, 54, 0.96);
-  border: 1px solid var(--line);
-  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(15, 31, 54, 0.98), rgba(12, 25, 43, 0.96));
+  border: 1px solid rgba(106, 169, 255, 0.22);
+  border-radius: 20px;
   box-shadow: var(--shadow);
-  padding: 18px 18px 16px;
+  padding: 20px 20px 18px;
   display: grid;
   grid-template-columns: 150px 1fr;
   gap: 18px;
@@ -147,9 +147,9 @@ button {
 }
 
 .phase-card {
-  background: rgba(15, 31, 54, 0.96);
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(15, 31, 54, 0.97), rgba(12, 25, 43, 0.98));
+  border: 1px solid rgba(106, 169, 255, 0.15);
+  border-radius: 18px;
   box-shadow: var(--shadow);
   padding: 16px;
   display: flex;
