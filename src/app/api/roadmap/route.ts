@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
+  if (!prisma) {
+    return NextResponse.json([], { status: 200 });
+  }
+
   const steps = await prisma.roadmapStep.findMany({
     orderBy: [{ phaseId: "asc" }, { stepId: "asc" }],
   });
@@ -11,6 +15,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!prisma) {
+    return NextResponse.json(
+      { error: "DATABASE_URL is not configured. Add your Neon PostgreSQL connection string." },
+      { status: 503 }
+    );
+  }
+
   const body = await request.json();
 
   const { phaseId, stepId, isChecked, updatedBy } = body as {
